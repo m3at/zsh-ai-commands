@@ -44,11 +44,17 @@ fzf_ai_commands() {
   ZSH_AI_COMMANDS_USER_QUERY=$(echo "$ZSH_AI_COMMANDS_USER_QUERY" | sed 's/"/\\"/g')
   zle end-of-line
   zle reset-prompt
-
-  ZSH_AI_COMMANDS_GPT_SYSTEM="You only answer 1 appropriate shell one liner that does what the user asks for. The command has to work with the $(basename $SHELL) terminal. Don't wrap your answer in code blocks or anything, dont acknowledge those rules, don't format your answer. Just reply the plaintext command. If your answer uses arguments or flags, you MUST end your shell command with a shell comment starting with ## with a ; separated list of concise explanations about each agument. Don't explain obvious placeholders like <ip> or <serverport> etc. Remember that your whole answer MUST remain a oneliner."
-  ZSH_AI_COMMANDS_GPT_EX="Description of what the command should do: 'list files, sort by descending size'. Give me the appropriate command."
-  ZSH_AI_COMMANDS_GPT_EX_REPLY="ls -lSr ## -l long listing ; -S sort by file size ; -r reverse order"
-  ZSH_AI_COMMANDS_GPT_USER="Description of what the command should do: '$ZSH_AI_COMMANDS_USER_QUERY'. Give me the appropriate command."
+  
+  ZSH_AI_COMMANDS_GPT_SYSTEM="You are an experienced sysadmin. You craft a short and elegant one liner, for the $(basename $SHELL) shell, to do what the user asks for. Do NOT wrap your answer in code blocks or other formatting. Use ex <file> or <port_number> when placeholders are required. When using rare arguments or flags, you can append a comment starting with ## to concisely explain the command. Your whole answer MUST always remain a oneliner."
+  ZSH_AI_COMMANDS_GPT_EX_1="list files, sort by descending size"
+  ZSH_AI_COMMANDS_GPT_EX_REPLY_1="ls -lhSr ## -l long listing ; -h unit suffixes ; -S sort by size ; -r reverse"
+  ZSH_AI_COMMANDS_GPT_EX_2='git diff without lock files'
+  ZSH_AI_COMMANDS_GPT_EX_REPLY_2="git diff -- . ':!*.lock'"
+  ZSH_AI_COMMANDS_GPT_EX_3='count the number of {\"success\": true} in file.jsonl'
+  ZSH_AI_COMMANDS_GPT_EX_REPLY_3="jq '[.success | select(. == true)] | length' < file.jsonl | awk '{s+=\$1} END {print s}' ## Through jq, extract 'success' fields that are true, wrap in an array to get 1 if true. Then use awk to sum it all"
+  # get 4 random words
+  # shuf -n4 /usr/share/dict/words | tr '\n' '-' | head -c -1
+  ZSH_AI_COMMANDS_GPT_USER="$ZSH_AI_COMMANDS_USER_QUERY"
   ZSH_AI_COMMANDS_GPT_REQUEST_BODY='{
     "system_instruction": {
       "parts": {
@@ -59,13 +65,37 @@ fzf_ai_commands() {
       {
         "role": "user",
         "parts": {
-          "text": "'$ZSH_AI_COMMANDS_GPT_EX'"
+          "text": "'$ZSH_AI_COMMANDS_GPT_EX_1'"
         }
       },
       {
         "role": "model",
         "parts": {
-          "text": "'$ZSH_AI_COMMANDS_GPT_EX_REPLY'"
+          "text": "'$ZSH_AI_COMMANDS_GPT_EX_REPLY_1'"
+        }
+      },
+      {
+        "role": "user",
+        "parts": {
+          "text": "'$ZSH_AI_COMMANDS_GPT_EX_2'"
+        }
+      },
+      {
+        "role": "model",
+        "parts": {
+          "text": "'$ZSH_AI_COMMANDS_GPT_EX_REPLY_2'"
+        }
+      },
+      {
+        "role": "user",
+        "parts": {
+          "text": "'$ZSH_AI_COMMANDS_GPT_EX_3'"
+        }
+      },
+      {
+        "role": "model",
+        "parts": {
+          "text": "'$ZSH_AI_COMMANDS_GPT_EX_REPLY_3'"
         }
       },
       {
@@ -78,7 +108,7 @@ fzf_ai_commands() {
     "generationConfig": {
       "candidateCount": '$ZSH_AI_COMMANDS_N_GENERATIONS',
       "maxOutputTokens": 128,
-      "temperature": 1
+      "temperature": 0.4
     }
   }'
 
@@ -105,7 +135,6 @@ fzf_ai_commands() {
     if [ ! -z "$exit_code" ]
     then
         # parse output
-        # ZSH_AI_COMMANDS_PARSED=$(echo "$ZSH_AI_COMMANDS_GPT_RESPONSE" |sed '/"text": "/ s/\\/\\\\/g' | jq -r '.candidates[].content.parts[0].text' | uniq)
         ZSH_AI_COMMANDS_PARSED=$(jq -r '.candidates[].content.parts[0].text | gsub("[\\n\\t]"; "")' /tmp/zshllmresp.json | uniq)
     else
         # give up parsing
