@@ -45,7 +45,7 @@ fzf_ai_commands() {
   zle end-of-line
   zle reset-prompt
   
-  ZSH_AI_COMMANDS_GPT_SYSTEM="You are an experienced sysadmin. You craft a short and elegant one liner, for the $(basename $SHELL) shell, to do what the user asks for. Do NOT wrap your answer in code blocks or other formatting. Use ex <file> or <port_number> when placeholders are required. When using rare arguments or flags, you can append a comment starting with ## to concisely explain the command. Your whole answer MUST always remain a oneliner."
+  ZSH_AI_COMMANDS_GPT_SYSTEM="You are an experienced sysadmin. You craft a short and elegant one liner, for the $(basename $SHELL) shell on MacOS, to do what the user asks for. Assume all common GNU utils are available, as well as rg, jq and fzf. Do NOT wrap your answer in code blocks or other formatting. Use ex <file> or <port_number> when placeholders are required. When using rare arguments or flags, you can append a comment starting with ## to concisely explain the command. Your whole answer MUST always remain a oneliner."
   ZSH_AI_COMMANDS_GPT_EX_1="list files, sort by descending size"
   ZSH_AI_COMMANDS_GPT_EX_REPLY_1="ls -lhSr ## -l long listing ; -h unit suffixes ; -S sort by size ; -r reverse"
   ZSH_AI_COMMANDS_GPT_EX_2='git diff without lock files'
@@ -124,23 +124,18 @@ fzf_ai_commands() {
 
   # if the json parsing fails, retry after some formating
   exit_code=$(jq -r '.candidates[0].content.parts[0].text' /tmp/zshllmresp.json 2>&1) || exit_code=""
+
+  # DEBUG
+  # example:
+  # find the 5 biggest local files under current root, shown their human redable size along with their path (split your command into multiple line)
+  # echo /tmp/zshllmresp.json
+
   if [ ! -z "$exit_code" ]
   then
-    # ZSH_AI_COMMANDS_PARSED=$(jq -r '.candidates[].content.parts[0].text' /tmp/zshllmresp.json | uniq)
     ZSH_AI_COMMANDS_PARSED=$(jq -r '.candidates[].content.parts[0].text | gsub("[\\n\\t]"; "")' /tmp/zshllmresp.json | uniq)
   else
-    # retrying with better parsing - not really needed for gemini, but keep for consistency, and might help in some edge cases
-    # exit_code=$(echo "$ZSH_AI_COMMANDS_GPT_RESPONSE" |sed '/"text": "/ s/\\/\\\\/g' | jq -r '.candidates[0].content.parts[0].text' 2>&1) || exit_code=""
-
-    if [ ! -z "$exit_code" ]
-    then
-        # parse output
-        ZSH_AI_COMMANDS_PARSED=$(jq -r '.candidates[].content.parts[0].text | gsub("[\\n\\t]"; "")' /tmp/zshllmresp.json | uniq)
-    else
-        # give up parsing
-        echo "Failed to parse gemini response: $exit_code"
-        # echo $ZSH_AI_COMMANDS_GPT_RESPONSE | jq -r '.candidates[].content.parts[0].text'
-    fi
+    echo "Failed to parse gemini response: $exit_code"
+    return 1
   fi
 
   export ZSH_AI_COMMANDS_PARSED
